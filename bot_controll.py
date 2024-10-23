@@ -1,7 +1,7 @@
 
 import discord
 from discord.ext import commands
-import nest_asyncio
+#import nest_asyncio
 
 #独自.pyファイル
 import config
@@ -44,5 +44,5 @@ async def ai(ctx, *arg):
       await ctx.send("コマンドに続けて質問したいことを教えてね！")
 
 # Botの起動とDiscordサーバーへの接続
-nest_asyncio.apply()
+#nest_asyncio.apply()
 bot.run(TOKEN)
