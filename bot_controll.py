@@ -1,62 +1,48 @@
-import urllib.request
-import imghdr
-import PIL.Image
+
 import discord
-import re #正規表現のためのライブラリ
+from discord.ext import commands
 import nest_asyncio
 
-##独自.pyファイル
+#独自.pyファイル
 import config
 from open_ai_api import get_response
 
-def tenpu_image_download(url, save_pass):
-    #添付画像をダウンロード
-    opener = urllib.request.build_opener()
-    opener.addheaders = [("User-agent", "Mozilla/5.0")]
-    urllib.request.install_opener(opener)
-    urllib.request.urlretrieve(url, save_pass)
-    return
-
-def download_image_class(message, save_pass):
-  url = message.attachments[0].url
-  tenpu_image_download(url, save_pass)
-  # jpgに変換して上書き保存
-  imagetype = imghdr.what(save_pass)
-
-  if imagetype == "png":
-    image_convert = PIL.Image.open(save_pass)
-    image_convert = image_convert.convert("RGB")
-    image_convert.save(save_pass)
-
-
-
-save_pass = "/content/drive/MyDrive/tmp.jpg"
-
+#BOTトークン
 TOKEN = config.BOT_TOKEN
 
-# 接続に必要なオブジェクトを生成
-client = discord.Client(intents=discord.Intents.all())
+#BOTに付与する権限類
+intents = discord.Intents.default()
+#intents.members = True # メンバー管理の権限
+intents.message_content = True # メッセージの内容を取得する権限
+
+# Botをインスタンス化
+bot = commands.Bot(
+    command_prefix="!", # !でコマンドを実行
+    case_insensitive=True, # コマンドの大文字小文字を区別しない ($hello も $Hello も同じ!)
+    intents=intents # 権限を設定
+)
 
 # 起動時に動作する処理
-@client.event
+@bot.event
 async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
     print('ログインしました')
 
 # メッセージ受信時に動作する処理
-@client.event
-async def on_message(message):
+@bot.command()
+async def ai(ctx, *arg):
   # メッセージ送信者がBotだった場合は無視する
-     if message.author.bot:
-         return
+    if ctx.author.bot:
+        return
 
-    # 特定文字列から始まるものを検知
-     if message.content:
-      # if re.match("/ai.*", message.content) != None:
-        response = get_response(message.content[4:])
+    if arg:
+      # メッセージの返信
+      response = get_response(arg)
+      print(arg)
+      await ctx.send(response)
+    else:
+      await ctx.send("コマンドに続けて質問したいことを教えてね！")
 
-        await message.channel.send(response)
-
-nest_asyncio.apply()
 # Botの起動とDiscordサーバーへの接続
-client.run(TOKEN)
+nest_asyncio.apply()
+bot.run(TOKEN)
