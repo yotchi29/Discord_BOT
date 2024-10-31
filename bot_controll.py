@@ -18,7 +18,7 @@ intents.message_content = True # メッセージの内容を取得する権限
 # Botをインスタンス化
 bot = commands.Bot(
     command_prefix="!", # !でコマンドを実行
-    case_insensitive=True, # コマンドの大文字小文字を区別しない ($hello も $Hello も同じ!)
+    case_insensitive=True, # コマンドの大文字小文字を区別しない
     intents=intents # 権限を設定
 )
 
@@ -26,20 +26,20 @@ bot = commands.Bot(
 @bot.event
 async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
-    print('ログインしました')
+    print("ログインしました")
 
 # メッセージ受信時に動作する処理
 @bot.command()
-async def ai(ctx, *arg):
+async def ai(ctx, *input_message):
   # メッセージ送信者がBotだった場合は無視する
     if ctx.author.bot:
         return
 
-    if arg:
+    if input_message:
       # メッセージの返信
-      response = get_response(arg)
-      print(arg)
-      await ctx.send(response)
+      response = get_response(input_message)
+      print(input_message)
+      await ctx.send(response["text"])
     else:
       await ctx.send("コマンドに続けて質問したいことを教えてね！")
 
