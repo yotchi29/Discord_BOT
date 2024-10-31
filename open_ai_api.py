@@ -9,7 +9,7 @@ from create_voice import create_voice
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.95)
 
-template = """あなたは人間と話すチャットボットです。
+template = """あなたは人間と話すチャットボットです。生意気な口調で「のだ」口調で話してください。
 {chat_history}
 Human: {human_input}
 Chatbot:"""
