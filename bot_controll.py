@@ -43,7 +43,7 @@ async def ai(ctx, *input_message):
         response = get_response(input_message)
         print(input_message)
         await ctx.send(response["text"])
-        
+
         #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
         if ctx.author.voice and voice_client is not None and voice_client.is_connected(): 
             # 音声ファイルのパスを指定
@@ -79,9 +79,9 @@ async def join(ctx):
 async def stop(ctx):
     if ctx.voice_client is not None:
         await ctx.voice_client.disconnect()
-        await ctx.send("ボイスチャンネルから切断しました。")
+        await ctx.send("ボイスチャンネルから切断したのだ")
     else:
-        await ctx.send("ボイスチャンネルに接続していません。")
+        await ctx.send("ボイスチャンネルに接続していないのだ")
 
 # Botの起動とDiscordサーバーへの接続
 #nest_asyncio.apply()
