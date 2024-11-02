@@ -6,6 +6,8 @@ from pathlib import Path
 #独自.pyファイル
 import config
 from open_ai_api import get_response
+from get_youtube_url import get_youtube_url
+from create_voice import create_voice
 
 #BOTトークン
 TOKEN = config.BOT_TOKEN
@@ -30,6 +32,7 @@ bot = commands.Bot(
 async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
     print("ログインしました")
+
 
 # メッセージ受信時に動作する処理
 @bot.command()
@@ -68,12 +71,6 @@ async def join(ctx):
     voice_channel = ctx.author.voice.channel
     voice_client = await voice_channel.connect()
 
-    # if ctx.author.voice is None:
-    #     # 音声ファイルのパスを指定
-    #     audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
-    #     if not voice_client.is_playing():
-    #         voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
-
 # 音声を停止し、ボイスチャンネルから切断するコマンド
 @bot.command()
 async def stop(ctx):
@@ -83,6 +80,33 @@ async def stop(ctx):
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
 
+@bot.command()
+async def play(ctx, url):
+    play_url = get_youtube_url(url)
+
+    # 音声ソースを作成
+    audio_source = discord.FFmpegPCMAudio(play_url)
+    audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.5)
+
+    #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
+    if ctx.author.voice and voice_client is not None and voice_client.is_connected(): 
+        if not voice_client.is_playing():
+            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+
+# @bot.event
+# async def on_message(message: discord.Message):
+#     """メッセージをおうむ返しにする処理"""
+
+#     if message.author.bot: # ボットのメッセージは無視
+#         return
+
+# #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
+#     if message.author.voice and voice_client is not None and voice_client.is_connected(): 
+#         # 音声ファイルのパスを指定
+#         create_voice(message)
+#         audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+#         if not voice_client.is_playing():
+#             voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+
 # Botの起動とDiscordサーバーへの接続
-#nest_asyncio.apply()
 bot.run(TOKEN)
