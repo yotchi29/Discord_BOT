@@ -30,4 +30,12 @@ def create_voice(text:str):
     with open(f"{Path(__file__).parent}/tmp_file/res_text.txt", "w",encoding="utf-8") as f:
         f.write(text)
 
+    # 音声ファイルを保存して再生(絶対パス)
+    with open(f"C:/Users/renta/Joyman/Assets/Audio/normal.wav", "wb") as f:
+        f.write(synthesis_res.content)
+
+    # 文字ファイルを保存(絶対パス)
+    with open("C:/Users/renta/Joyman/Assets/Text/responce.txt", "w",encoding="utf-8") as f:
+        f.write(text)
+
     print("音声・文字ファイルが生成されました！")
