@@ -6,13 +6,24 @@ from langchain.chains import ConversationChain,LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from create_voice import create_voice
+import datetime
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.95)
 
-template = """あなたは人間と話すチャットボットです。生意気な口調で「のだ」口調で話してください。
-{chat_history}
+template1 = f"""
+あなたは人間と話すチャットボットです。
+生意気な口調で"のだ","なのだ"口調で話してください。
+現在時刻は{datetime.datetime.now()}
+また、あなたは以下の設定を守ってください。
+名前：ずんだもん
+出身地：東北
+好きなもの：ずんだもち
+"""
+template2="""{chat_history}
 Human: {human_input}
 Chatbot:"""
+
+template=template1+template2
 
 prompt = PromptTemplate(
     input_variables=["chat_history", "human_input"],
