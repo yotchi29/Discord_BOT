@@ -3,9 +3,8 @@
 import config
 from langchain_openai import ChatOpenAI
 from langchain.chains import ConversationChain,LLMChain
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationBufferWindowMemory #save onry k of chat history 
 from langchain_core.prompts import PromptTemplate
-from create_voice import create_voice
 import datetime
 
 llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.95)
@@ -30,7 +29,7 @@ prompt = PromptTemplate(
     template=template
 )
 
-memory = ConversationBufferMemory(memory_key="chat_history")
+memory = ConversationBufferWindowMemory(memory_key="chat_history", k=5)
 
 #レガシーな書き方
 llm_chain = LLMChain(
@@ -43,5 +42,4 @@ llm_chain = LLMChain(
 #AIからのレスポンスを得る
 def get_response(msg:str) -> str:
     responce = llm_chain.invoke(msg)
-    create_voice(responce["text"])
     return responce

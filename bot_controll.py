@@ -47,14 +47,15 @@ async def ai(ctx, *input_message):
         # メッセージの返信
         response = get_response(input_message)
         print(input_message)
-        await ctx.send(response["text"])
 
         #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
         if ctx.author.voice and voice_client is not None and voice_client.is_connected(): 
             # 音声ファイルのパスを指定
+            create_voice(response["text"])
             audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
             if not voice_client.is_playing():
                 voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+        await ctx.send(response["text"])
    
     else:
       await ctx.send("コマンドに続けて質問したいことを教えてね！")
