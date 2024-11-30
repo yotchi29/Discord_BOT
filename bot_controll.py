@@ -89,7 +89,7 @@ async def play(ctx, url):
 
     # 音声ソースを作成
     audio_source = discord.FFmpegPCMAudio(play_url)
-    audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.5)
+    audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.25)
 
     #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
     if ctx.author.voice and voice_client is not None and voice_client.is_connected(): 
@@ -104,6 +104,12 @@ async def on_message(message):
         print(message)
         await message.channel.send(response["text"])
         
+    #
+    if message.channel.id == 1311371023245115442 and message.author.voice and voice_client is not None and voice_client.is_connected():
+    #if message.channel.id == 818608655058337806 and message.author.voice and voice_client is not None and voice_client.is_connected(): 
+        create_voice(message.content)
+        audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+        voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
     # コマンド処理を明示的に呼び出す
     await bot.process_commands(message)
 
