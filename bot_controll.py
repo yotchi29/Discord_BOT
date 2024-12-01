@@ -2,6 +2,7 @@
 import discord
 from discord.ext import commands
 from pathlib import Path
+import re
 
 #独自.pyファイル
 import config
@@ -15,6 +16,10 @@ TOKEN = config.BOT_TOKEN
 # グローバル変数としてvoice_clientを定義
 voice_client = None
 
+# URL検出用の正規表現パターン
+url_pattern = re.compile(
+    r'^(https?://(?:www\.)?[a-zA-Z0-9\-]+\.[a-zA-Z]{2,}(?:/[^\s]*)?)$'
+)
 
 #BOTに付与する権限類
 intents = discord.Intents.default()
@@ -107,9 +112,10 @@ async def on_message(message):
     #
     if message.channel.id == 1311371023245115442 and message.author.voice and voice_client is not None and voice_client.is_connected():
     #if message.channel.id == 818608655058337806 and message.author.voice and voice_client is not None and voice_client.is_connected(): 
-        create_voice(message.content)
-        audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
-        voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+        if not bool(url_pattern.match(message.content)):
+            create_voice(message.content)
+            audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
     # コマンド処理を明示的に呼び出す
     await bot.process_commands(message)
 
