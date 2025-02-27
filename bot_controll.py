@@ -9,6 +9,7 @@ import config
 from open_ai_api import get_response
 from get_youtube_url import get_youtube_url
 from create_voice import create_voice
+from add_playlist import add_video_to_playlist
 
 #BOTトークン
 TOKEN = config.BOT_TOKEN
@@ -116,6 +117,15 @@ async def on_message(message):
             create_voice(message.content)
             audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
             voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+
+    #if message.channel.id == 818608655058337806 and bool(url_pattern.match(message.content)):
+    if message.channel.id == 1343922045355823155 and bool(url_pattern.match(message.content)):
+            try:
+                add_video_to_playlist(message.content)
+                await message.channel.send("プレイリストに追加できたのだ！！\n以下で確認!\nhttps://www.youtube.com/playlist?list=PLy1zTyKa-YM6sIw_wZ4aKyN4myTwglKnM")
+            except:
+                await message.channel.send("技術的な問題が発生したのだ...")
+
     # コマンド処理を明示的に呼び出す
     await bot.process_commands(message)
 
