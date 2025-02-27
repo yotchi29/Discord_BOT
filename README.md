@@ -10,6 +10,7 @@ DIscordのBOT開発
 - VOICEVOX
 - FFmpeg
 - OpenAI API
+- google API
 - Discord Bot
 
 ### コマンド
