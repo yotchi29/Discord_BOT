@@ -89,18 +89,35 @@ async def stop(ctx):
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
 
+#################################################################################
+queue=[]
+is_playing=False
+
+def play_next(ctx, vc):
+    global is_playing
+    if queue:
+        next_url = queue.pop(0)
+        audio_source = discord.FFmpegPCMAudio(next_url)
+        audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.25)
+        vc.play(audio_source, after=lambda e: play_next(ctx, vc))
+    else:
+        is_playing = False
+
 @bot.command()
-async def play(ctx, url):
-    play_url = get_youtube_url(url)
+async def play(ctx, play_url):
+    global is_playing
 
-    # 音声ソースを作成
-    audio_source = discord.FFmpegPCMAudio(play_url)
-    audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.25)
-
-    #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
-    if ctx.author.voice and voice_client is not None and voice_client.is_connected(): 
-        if not voice_client.is_playing():
-            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+    voice_client = ctx.voice_client
+    if ctx.author.voice and voice_client and voice_client.is_connected():
+        if not voice_client.is_playing() and not is_playing:
+            is_playing = True
+            audio_source = discord.FFmpegPCMAudio(play_url)
+            audio_source = discord.PCMVolumeTransformer(audio_source, volume=0.25)
+            voice_client.play(audio_source,after=lambda e: play_next(ctx, voice_client))
+        else:
+            queue.append(play_url)
+            await ctx.send(f"キューに追加したのだ")
+#######################################################################################
 
 @bot.event
 async def on_message(message):
