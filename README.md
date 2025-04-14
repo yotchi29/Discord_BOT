@@ -10,9 +10,15 @@ DIscordのBOT開発
 - VOICEVOX
 - FFmpeg
 - OpenAI API
+- google API
 - Discord Bot
 
 ### コマンド
 - `!ai`:botがユーザの質問に応答
 - `!join`:botがボイスチャンネルに接続
 - `!stop`:botがボイスチャンネルから退出
+
+### できること
+- **生成AIによる応答**
+- **voicevox音源による読み上げ**
+- **youtube共有プレイリストへの楽曲追加**
