@@ -1,6 +1,6 @@
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from pathlib import Path
 import re
 
@@ -10,9 +10,16 @@ from open_ai_api import get_response
 from get_youtube_url import get_youtube_url
 from create_voice import create_voice
 from add_playlist import add_video_to_playlist
+import datetime
+import pytz
+import random
 
 #BOTトークン
 TOKEN = config.BOT_TOKEN
+GUILD_ID=config.GUILD_ID
+CHANNEL_ID=config.DAILY_CHANNEL_ID
+
+
 
 # グローバル変数としてvoice_clientを定義
 voice_client = None
@@ -26,6 +33,7 @@ url_pattern = re.compile(
 intents = discord.Intents.default()
 #intents.members = True # メンバー管理の権限
 intents.message_content = True # メッセージの内容を取得する権限
+intents.members = True  #メンバーを取得する権限
 
 # Botをインスタンス化
 bot = commands.Bot(
@@ -40,6 +48,7 @@ bot = commands.Bot(
 async def on_ready():
     # 起動したらターミナルにログイン通知が表示される
     print("ログインしました")
+    daily_mention.start()
 
 
 # メッセージ受信時に動作する処理
@@ -88,6 +97,24 @@ async def stop(ctx):
         await ctx.send("ボイスチャンネルから切断したのだ")
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
+
+@tasks.loop(minutes=1)
+async def daily_mention():
+    now = datetime.datetime.now().strftime('%H:%M')
+    if now == "12:00":
+        guild = bot.get_guild(GUILD_ID)
+        channel = bot.get_channel(CHANNEL_ID)
+        print(guild)
+        print(channel)
+
+        if guild and channel:
+            # bot 以外のメンバーを抽出
+            members = [m for m in guild.members if not m.bot]
+            if members:
+                chosen = random.choice(members)
+                await channel.send(f"{chosen.mention} さん、今日はあなたの日なのだ！🌟")
+                daily_res=get_response("何か私に質問して。質問だけ返して。いつも同じ質問にならないように気を付けて")
+                await channel.send(daily_res["text"])
 
 #################################################################################
 queue=[]
