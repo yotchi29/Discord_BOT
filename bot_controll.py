@@ -131,9 +131,10 @@ def play_next(ctx, vc):
         is_playing = False
 
 @bot.command()
-async def play(ctx, play_url):
+async def play(ctx, url):
     global is_playing
 
+    play_url=get_youtube_url(url)
     voice_client = ctx.voice_client
     if ctx.author.voice and voice_client and voice_client.is_connected():
         if not voice_client.is_playing() and not is_playing:
