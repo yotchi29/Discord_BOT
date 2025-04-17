@@ -14,7 +14,6 @@ CRED_PATH=f"{os.path.dirname(os.path.abspath(__file__))}/credentials.json"
 
 # 認証とAPIクライアントの作成
 def get_authenticated_service():
-
     creds = None
     if os.path.exists(TOKEN_PATH):
         creds = Credentials.from_authorized_user_file(TOKEN_PATH, SCOPES)
@@ -22,11 +21,13 @@ def get_authenticated_service():
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CRED_PATH, SCOPES)
-            creds = flow.run_local_server(port=0)
+            #offlineはリフレッシュトークン取得、consentは次回以降も取得可能にする
+            creds = flow.run_local_server(port=0, access_type='offline', prompt='consent')
 
-        with open("token.json", "w") as token:
+        with open(TOKEN_PATH, "w") as token:
             token.write(creds.to_json())
 
     return build("youtube", "v3", credentials=creds)
