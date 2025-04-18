@@ -10,16 +10,14 @@ from open_ai_api import get_response
 from get_youtube_url import get_youtube_url
 from create_voice import create_voice
 from add_playlist import add_video_to_playlist
+from create_image import create_image
 import datetime
-import pytz
 import random
 
 #BOTトークン
 TOKEN = config.BOT_TOKEN
 GUILD_ID=config.GUILD_ID
 CHANNEL_ID=config.DAILY_CHANNEL_ID
-
-
 
 # グローバル変数としてvoice_clientを定義
 voice_client = None
@@ -41,6 +39,9 @@ bot = commands.Bot(
     case_insensitive=True, # コマンドの大文字小文字を区別しない
     intents=intents # 権限を設定
 )
+
+# Discordのクライアントを設定
+client = discord.Client(intents=intents)
   
 
 # 起動時に動作する処理
@@ -97,6 +98,16 @@ async def stop(ctx):
         await ctx.send("ボイスチャンネルから切断したのだ")
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
+
+@bot.command()
+async def imggen(ctx, prompt):
+    try:
+        img_data=create_image(prompt)
+        # Discordチャンネルに画像を送信
+        #channel = client.get_channel(1362828942398193847)
+        await ctx.send(file=discord.File(img_data, 'generated_image.jpg'))
+        await ctx.send("画像の生成に成功したのだ")
+    except: await ctx.send("画像の生成に失敗したのだ")
 
 @tasks.loop(minutes=1)
 async def daily_mention():
