@@ -1,8 +1,7 @@
-
 import discord
 from discord.ext import commands, tasks
 from pathlib import Path
-import re
+import re, json, os
 
 #独自.pyファイル
 import config
@@ -118,14 +117,51 @@ async def daily_mention():
         print(guild)
         print(channel)
 
+        # 既に指名したメンバーリスト読み込み
+        if os.path.exists("appointed_users.json"):
+            try:
+                with open("appointed_users.json", "r", encoding="utf-8") as f:
+                    raw_users = json.load(f)
+                    appointed_users = raw_users["members"]
+                print("appointed_users.json 読み込み成功")
+            except Exception as e:
+                print("appointed_users.json の読み込みに失敗しました")
+                print(e)
+                appointed_users = []
+        else:
+            appointed_users = []
+        print(f'既に指名されているメンバー：{appointed_users}')
+
+        # チャンネルのメンバーリスト作成
+        guild_members = []
         if guild and channel:
             # bot 以外のメンバーを抽出
-            members = [m for m in guild.members if not m.bot]
-            if members:
-                chosen = random.choice(members)
-                await channel.send(f"{chosen.mention} さん、今日はあなたの日なのだ！🌟")
-                daily_res=get_response("何か私に質問して。質問だけ返して。いつも同じ質問にならないように気を付けて")
-                await channel.send(daily_res["text"])
+            guild_members_list = [m for m in guild.members if not m.bot]
+            for member in guild_members_list:
+                guild_members.append(member.global_name)
+            print(f'サーバーのメンバー：{guild_members}')
+
+            # 抽選対象メンバーリスト作成
+            lottery_list = list(set(guild_members) - set(appointed_users))
+            # 全員呼ばれていたら初期化
+            if not lottery_list:
+                lottery_list = guild_members
+                appointed_users = []
+            print(f'指名抽選対象メンバー：{lottery_list}')
+
+            # 指名メンバー抽出
+            appoint_user = random.choice(lottery_list)
+            print(f'指名メンバー：{appoint_user}')
+            chosen = [d for d in guild_members_list if d.global_name == appoint_user][0] # Guild_members_listからglobal_nameで検索してMemberオブジェクトを取得
+            await channel.send(f"{chosen.mention} さん、今日はあなたの日なのだ！🌟")
+            daily_res = get_response("何か私に質問して。質問だけ返して。いつも同じ質問にならないように気を付けて")
+            await channel.send(daily_res["text"])
+
+            # 指名したメンバーを追加してリストを保存
+            appointed_users.append(appoint_user)
+            raw_appointed_users = {'members': appointed_users}
+            with open("appointed_users.json", "w", encoding="utf-8") as f:
+                json.dump(raw_appointed_users, f, ensure_ascii=False, indent=2)
 
 #################################################################################
 queue=[]
