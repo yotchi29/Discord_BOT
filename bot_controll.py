@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 from pathlib import Path
-import re, json, os
+import re, json, os, asyncio
 
 #独自.pyファイル
 import config
@@ -84,21 +84,34 @@ async def join(ctx):
         await ctx.send("ボイスチャンネルに参加してください。")
         return
 
-    # 既に接続中の場合は切断してリセット
-    if voice_client is not None and voice_client.is_connected():
-        await voice_client.disconnect(force=True)
-        voice_client = None
+    # グローバル変数・discord.py内部どちらのセッションも確実にクリア
+    for vc in [voice_client, ctx.guild.voice_client]:
+        if vc is not None:
+            try:
+                await vc.disconnect(force=True)
+            except Exception:
+                pass
+    voice_client = None
+    await asyncio.sleep(1)  # Discord側のセッション破棄を待つ
 
-    # ユーザーのボイスチャンネルに接続
+    # ユーザーのボイスチャンネルに接続（4006時は1回だけ自動リトライ）
     voice_channel = ctx.author.voice.channel
-    try:
-        voice_client = await voice_channel.connect(reconnect=False)
-    except discord.errors.ConnectionClosed as e:
-        voice_client = None
-        await ctx.send(f"ボイスチャンネルへの接続に失敗したのだ（コード: {e.code}）")
-    except Exception as e:
-        voice_client = None
-        await ctx.send(f"ボイスチャンネルへの接続中にエラーが発生したのだ: {e}")
+    for attempt in range(2):
+        try:
+            voice_client = await voice_channel.connect(reconnect=False)
+            return
+        except discord.errors.ConnectionClosed as e:
+            voice_client = None
+            if e.code == 4006 and attempt == 0:
+                await ctx.send("セッションをリセットして再接続を試みるのだ…")
+                await asyncio.sleep(3)
+                continue
+            await ctx.send(f"ボイスチャンネルへの接続に失敗したのだ（コード: {e.code}）")
+            return
+        except Exception as e:
+            voice_client = None
+            await ctx.send(f"ボイスチャンネルへの接続中にエラーが発生したのだ: {e}")
+            return
 
 # 音声を停止し、ボイスチャンネルから切断するコマンド
 @bot.command()
