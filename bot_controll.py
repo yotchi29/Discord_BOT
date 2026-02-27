@@ -15,8 +15,7 @@ import random
 
 #BOTトークン
 TOKEN = config.BOT_TOKEN
-GUILD_ID=config.GUILD_ID
-CHANNEL_ID=config.DAILY_CHANNEL_ID
+YOUTUBE_PLAYLIST_URL = config.YOUTUBE_PLAYLIST_URL
 
 # グローバル変数としてvoice_clientを定義
 voice_client = None
@@ -85,18 +84,46 @@ async def join(ctx):
         await ctx.send("ボイスチャンネルに参加してください。")
         return
 
+    # 既に接続中の場合は切断してリセット
+    if voice_client is not None and voice_client.is_connected():
+        await voice_client.disconnect(force=True)
+        voice_client = None
+
     # ユーザーのボイスチャンネルに接続
     voice_channel = ctx.author.voice.channel
-    voice_client = await voice_channel.connect()# 音声データの取得と認識
+    try:
+        voice_client = await voice_channel.connect(reconnect=False)
+    except discord.errors.ConnectionClosed as e:
+        voice_client = None
+        await ctx.send(f"ボイスチャンネルへの接続に失敗したのだ（コード: {e.code}）")
+    except Exception as e:
+        voice_client = None
+        await ctx.send(f"ボイスチャンネルへの接続中にエラーが発生したのだ: {e}")
 
 # 音声を停止し、ボイスチャンネルから切断するコマンド
 @bot.command()
 async def stop(ctx):
+    global voice_client
     if ctx.voice_client is not None:
-        await ctx.voice_client.disconnect()
+        await ctx.voice_client.disconnect(force=True)
+        voice_client = None
         await ctx.send("ボイスチャンネルから切断したのだ")
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
+
+# ボットが強制切断された際にvoice_clientをリセット
+@bot.event
+async def on_voice_state_update(member, before, after):
+    global voice_client
+    if member == bot.user and before.channel is not None and after.channel is None:
+        # ボット自身がボイスチャンネルから切断された
+        if voice_client is not None:
+            try:
+                await voice_client.disconnect(force=True)
+            except Exception:
+                pass
+            voice_client = None
+            print("ボイスチャンネルから切断されたためvoice_clientをリセットしました")
 
 @bot.command()
 async def imggen(ctx, prompt):
@@ -112,33 +139,37 @@ async def imggen(ctx, prompt):
 async def daily_mention():
     now = datetime.datetime.now().strftime('%H:%M')
     if now == "12:00":
-        guild = bot.get_guild(GUILD_ID)
-        channel = bot.get_channel(CHANNEL_ID)
-        print(guild)
-        print(channel)
+        # ボットが参加している全サーバーに対して実行
+        for guild in bot.guilds:
+            # 送信先チャンネルを選択（system_channel → 送信可能な最初のテキストチャンネル）
+            channel = guild.system_channel or next(
+                (c for c in guild.text_channels if c.permissions_for(guild.me).send_messages), None
+            )
+            if not channel:
+                print(f"{guild.name}: 送信可能なチャンネルが見つからなかったのだ")
+                continue
 
-        # 既に指名したメンバーリスト読み込み
-        if os.path.exists("appointed_users.json"):
-            try:
-                with open("appointed_users.json", "r", encoding="utf-8") as f:
-                    raw_users = json.load(f)
-                    appointed_users = raw_users["members"]
-                print("appointed_users.json 読み込み成功")
-            except Exception as e:
-                print("appointed_users.json の読み込みに失敗しました")
-                print(e)
+            print(f"{guild.name} / #{channel.name}")
+
+            # 既に指名したメンバーリスト読み込み（サーバーごとに管理）
+            json_path = f"appointed_users_{guild.id}.json"
+            if os.path.exists(json_path):
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        raw_users = json.load(f)
+                        appointed_users = raw_users["members"]
+                    print("appointed_users.json 読み込み成功")
+                except Exception as e:
+                    print("appointed_users.json の読み込みに失敗しました")
+                    print(e)
+                    appointed_users = []
+            else:
                 appointed_users = []
-        else:
-            appointed_users = []
-        print(f'既に指名されているメンバー：{appointed_users}')
+            print(f'既に指名されているメンバー：{appointed_users}')
 
-        # チャンネルのメンバーリスト作成
-        guild_members = []
-        if guild and channel:
-            # bot 以外のメンバーを抽出
+            # チャンネルのメンバーリスト作成
             guild_members_list = [m for m in guild.members if not m.bot]
-            for member in guild_members_list:
-                guild_members.append(member.global_name)
+            guild_members = [m.global_name for m in guild_members_list]
             print(f'サーバーのメンバー：{guild_members}')
 
             # 抽選対象メンバーリスト作成
@@ -152,7 +183,9 @@ async def daily_mention():
             # 指名メンバー抽出
             appoint_user = random.choice(lottery_list)
             print(f'指名メンバー：{appoint_user}')
-            chosen = [d for d in guild_members_list if d.global_name == appoint_user][0] # Guild_members_listからglobal_nameで検索してMemberオブジェクトを取得
+            chosen = next((m for m in guild_members_list if m.global_name == appoint_user), None)
+            if not chosen:
+                continue
             await channel.send(f"{chosen.mention} さん、今日はあなたの日なのだ！🌟")
             daily_res = get_response("何か私に質問して。質問だけ返して。いつも同じ質問にならないように気を付けて")
             await channel.send(daily_res["text"])
@@ -160,7 +193,7 @@ async def daily_mention():
             # 指名したメンバーを追加してリストを保存
             appointed_users.append(appoint_user)
             raw_appointed_users = {'members': appointed_users}
-            with open("appointed_users.json", "w", encoding="utf-8") as f:
+            with open(json_path, "w", encoding="utf-8") as f:
                 json.dump(raw_appointed_users, f, ensure_ascii=False, indent=2)
 
 #################################################################################
@@ -194,29 +227,43 @@ async def play(ctx, url):
             await ctx.send(f"キューに追加したのだ")
 #######################################################################################
 
+@bot.command()
+async def playlist(ctx, url):
+    """URLをYouTubeプレイリストに追加する"""
+    if not bool(url_pattern.match(url)):
+        await ctx.send("有効なURLを指定してほしいのだ")
+        return
+    try:
+        add_video_to_playlist(url)
+        reply = "プレイリストに追加できたのだ！！"
+        if YOUTUBE_PLAYLIST_URL:
+            reply += f"\n以下で確認!\n{YOUTUBE_PLAYLIST_URL}"
+        await ctx.send(reply)
+    except:
+        await ctx.send("技術的な問題が発生したのだ...")
+
 @bot.event
 async def on_message(message):
-    if bot.user in message.mentions or any(role.id == 1309581086510153771 for role in message.role_mentions):
-        # メッセージが送られてきたチャンネルに送る
+    # ボット自身のメッセージは無視
+    if message.author.bot:
+        await bot.process_commands(message)
+        return
+
+    # メンションされたら呼び出されたチャンネルに返信
+    if bot.user in message.mentions:
         response = get_response(message.content)
         print(message)
         await message.channel.send(response["text"])
-        
-    #
-    if message.channel.id == 1311371023245115442 and message.author.voice and voice_client is not None and voice_client.is_connected():
-    #if message.channel.id == 818608655058337806 and message.author.voice and voice_client is not None and voice_client.is_connected(): 
-        if not bool(url_pattern.match(message.content)):
-            create_voice(message.content)
-            audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
-            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
 
-    #if message.channel.id == 818608655058337806 and bool(url_pattern.match(message.content)):
-    if message.channel.id == 1343922045355823155 and bool(url_pattern.match(message.content)):
-            try:
-                add_video_to_playlist(message.content)
-                await message.channel.send("プレイリストに追加できたのだ！！\n以下で確認!\nhttps://www.youtube.com/playlist?list=PLy1zTyKa-YM6sIw_wZ4aKyN4myTwglKnM")
-            except:
-                await message.channel.send("技術的な問題が発生したのだ...")
+    # ボットが同サーバーでボイス接続中なら、どのチャンネルのメッセージでも読み上げ
+    if (message.guild and voice_client is not None and voice_client.is_connected()
+            and voice_client.guild == message.guild
+            and message.author.voice
+            and not bool(url_pattern.match(message.content))):
+        create_voice(message.content)
+        audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+        if not voice_client.is_playing():
+            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
 
     # コマンド処理を明示的に呼び出す
     await bot.process_commands(message)
