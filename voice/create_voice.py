@@ -1,5 +1,6 @@
 from pathlib import Path
-from voicevox_core.blocking import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile
+from voicevox_core.blocking import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile, UserDict
+from voicevox_core import UserDictWord
 
 # 0.vvmに含まれるキャラクター（ノーマルスタイル）の話者ID
 CHARACTERS = {
@@ -22,6 +23,33 @@ _open_jtalk = OpenJtalk(str(_ASSETS_DIR / "dict/open_jtalk_dic_utf_8-1.11"))
 _synthesizer = Synthesizer(_onnxruntime, _open_jtalk)
 with VoiceModelFile.open(str(_ASSETS_DIR / "models/vvms/0.vvm")) as _model:
     _synthesizer.load_voice_model(_model)
+
+# ユーザー辞書（読み上げ用語の追加登録）。Bot全体で共通の1つを使い回す
+_USER_DICT_PATH = Path(__file__).parent / "user_dictionary.json"
+_user_dict = UserDict()
+if _USER_DICT_PATH.exists():
+    _user_dict.load(str(_USER_DICT_PATH))
+_open_jtalk.use_user_dict(_user_dict)
+
+#辞書に単語を追加（アクセント型は平板固定）
+def add_dictionary_word(word: str, reading: str):
+    _user_dict.add_word(UserDictWord(surface=word, pronunciation=reading, accent_type=0, word_type="PROPER_NOUN"))
+    _user_dict.save(str(_USER_DICT_PATH))
+    _open_jtalk.use_user_dict(_user_dict)  # 変更を反映するには再適用が必要
+
+#辞書から単語を削除。存在しなければFalseを返す
+def remove_dictionary_word(word: str) -> bool:
+    matched_uuid = next((uuid for uuid, w in _user_dict.to_dict().items() if w.surface == word), None)
+    if matched_uuid is None:
+        return False
+    _user_dict.remove_word(matched_uuid)
+    _user_dict.save(str(_USER_DICT_PATH))
+    _open_jtalk.use_user_dict(_user_dict)
+    return True
+
+#登録済み単語一覧を{単語: 読み}の形で取得
+def list_dictionary_words() -> dict:
+    return {w.surface: w.pronunciation for w in _user_dict.to_dict().values()}
 
 #現在のキャラクターを変更
 def set_character(name: str):

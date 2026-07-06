@@ -8,7 +8,7 @@ import re, json, os, asyncio
 import config
 from ai.open_ai_api import get_response
 from youtube.get_youtube_url import get_youtube_url
-from voice.create_voice import create_voice, set_character
+from voice.create_voice import create_voice, set_character, add_dictionary_word, remove_dictionary_word, list_dictionary_words
 from youtube.add_playlist import add_video_to_playlist
 from image.create_image import create_image
 import datetime
@@ -176,6 +176,32 @@ async def imggen(ctx, *, prompt: str):
 async def change_character(ctx, character: Literal["ずんだもん", "四国めたん", "春日部つむぎ", "雨晴はう"]):
     set_character(character)
     await ctx.send(f"キャラクターを{character}に変更したのだ")
+
+@bot.hybrid_command(name="dict_add", description="読み上げ用の単語をユーザー辞書に登録するのだ")
+@discord.app_commands.describe(word="登録したい単語", reading="読み方（カタカナ）")
+async def dict_add(ctx, word: str, reading: str):
+    if not re.fullmatch(r"[ァ-ヴー]+", reading):
+        await ctx.send("読み方はカタカナで入力してほしいのだ")
+        return
+    add_dictionary_word(word, reading)
+    await ctx.send(f"「{word}」を「{reading}」という読みで登録したのだ")
+
+@bot.hybrid_command(name="dict_remove", description="ユーザー辞書から単語を削除するのだ")
+@discord.app_commands.describe(word="削除したい単語")
+async def dict_remove(ctx, word: str):
+    if remove_dictionary_word(word):
+        await ctx.send(f"「{word}」を辞書から削除したのだ")
+    else:
+        await ctx.send(f"「{word}」は辞書に登録されていないのだ")
+
+@bot.hybrid_command(name="dict_list", description="ユーザー辞書の登録単語一覧を表示するのだ")
+async def dict_list(ctx):
+    words = list_dictionary_words()
+    if not words:
+        await ctx.send("辞書にはまだ何も登録されていないのだ")
+        return
+    listing = "\n".join(f"{word} → {reading}" for word, reading in words.items())
+    await ctx.send(f"登録されている単語一覧なのだ:\n{listing}")
 
 @bot.hybrid_command(description="ボイス接続中のメッセージ自動読み上げをON/OFFするのだ")
 @discord.app_commands.describe(state="on または off（省略で現在の設定を切り替え）")

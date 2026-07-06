@@ -3,4 +3,5 @@ __pycache__
 bot_venv
 tmp_file
 voicevox_core_assets
+user_dictionary.json
 
