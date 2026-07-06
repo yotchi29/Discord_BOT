@@ -8,6 +8,3 @@ def get_youtube_url(link):
     audio_url = audio.url
 
     return audio_url
-
-#確認用
-print(get_youtube_url("https://www.youtube.com/watch?v=5mNoe6THr0A&pp=ygUN44Op44Oe44O844K6cA%3D%3D"))

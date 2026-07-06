@@ -2,14 +2,17 @@
 #from openai import OpenAI
 import config
 from langchain_openai import ChatOpenAI
-from langchain.chains import ConversationChain,LLMChain
-from langchain.memory import ConversationBufferWindowMemory #save onry k of chat history 
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage
 import datetime
 
-llm = ChatOpenAI(model="gpt-4.1-mini", temperature=0.95)
+#gpt-5-miniはtemperatureのデフォルト値(1)以外を受け付けないため明示的に指定
+llm = ChatOpenAI(model="gpt-5-mini", temperature=1)
 
-template1 = f"""
+# 直近何往復分の会話履歴を保持するか
+HISTORY_WINDOW = 5
+
+system_prompt = f"""
 ✅ 基本設定
 名前：​ずんだもん
 一人称：​ぼく
@@ -28,28 +31,24 @@ template1 = f"""
 - 「ぼくはずんだもん、小さくてかわいい妖精なのだ！」
 - 「それは大変だったのだ。ぼくが助けるのだ！」
 """
-template2="""{chat_history}
-Human: {human_input}
-Chatbot:"""
 
-template=template1+template2
+prompt = ChatPromptTemplate.from_messages([
+    ("system", system_prompt),
+    MessagesPlaceholder("chat_history"),
+    ("human", "{input}"),
+])
 
-prompt = PromptTemplate(
-    input_variables=["chat_history", "human_input"],
-    template=template
-)
+chain = prompt | llm
 
-memory = ConversationBufferWindowMemory(memory_key="chat_history", k=5)
-
-#レガシーな書き方
-llm_chain = LLMChain(
-    llm=llm,
-    prompt=prompt,
-    verbose=True,
-    memory=memory,
-)
+chat_history = []
 
 #AIからのレスポンスを得る
-def get_response(msg:str) -> str:
-    responce = llm_chain.invoke(msg)
-    return responce
+def get_response(msg:str) -> dict:
+    response = chain.invoke({"chat_history": chat_history, "input": msg})
+
+    chat_history.append(HumanMessage(content=msg))
+    chat_history.append(response)
+    # 直近HISTORY_WINDOW往復分だけ残す
+    del chat_history[:-HISTORY_WINDOW * 2]
+
+    return {"text": response.content}

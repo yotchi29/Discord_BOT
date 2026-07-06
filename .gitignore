@@ -1,5 +1,6 @@
-.env 
+.env
 __pycache__
 bot_venv
 tmp_file
+voicevox_core_assets
 
