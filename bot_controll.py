@@ -85,7 +85,8 @@ async def ai(ctx, *, message: str = ""):
                     voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
             await ctx.send(response["text"])
         except Exception as e:
-            await ctx.send(f"応答の生成に失敗したのだ: {e}")
+            print(f"aiコマンドでエラー: {e}")
+            await ctx.send("応答の生成に失敗したのだ")
 
     else:
       await ctx.send("コマンドに続けて質問したいことを教えてね！")
@@ -130,7 +131,8 @@ async def join(ctx):
             return
         except Exception as e:
             voice_client = None
-            await ctx.send(f"ボイスチャンネルへの接続中にエラーが発生したのだ: {e}")
+            print(f"joinコマンドでエラー: {e}")
+            await ctx.send("ボイスチャンネルへの接続中にエラーが発生したのだ")
             return
 
 # 音声を停止し、ボイスチャンネルから切断するコマンド
@@ -301,7 +303,8 @@ async def play(ctx, url: str):
     try:
         play_url=get_youtube_url(url)
     except Exception as e:
-        await ctx.send(f"URLの取得に失敗したのだ: {e}")
+        print(f"playコマンドでエラー: {e}")
+        await ctx.send("URLの取得に失敗したのだ")
         return
     voice_client = ctx.voice_client
     if ctx.author.voice and voice_client and voice_client.is_connected():

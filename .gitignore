@@ -4,4 +4,7 @@ bot_venv
 tmp_file
 voicevox_core_assets
 user_dictionary.json
+token.json
+credentials.json
+appointed_users.json
 
