@@ -1,27 +1,22 @@
 from openai import OpenAI
 import config
-import requests
+import base64
 import io
-
-
 
 # OpenAIクライアントのインスタンス化
 client = OpenAI(api_key=config.OPENAI_API_KEY)
 
 def create_image(query):
-    # 画像生成をリクエスト
+    # 画像生成をリクエスト（dall-e-3は2026-03-04に廃止されたためgpt-image-1-miniを使用）
     response = client.images.generate(
-    prompt=query,
-    model="dall-e-3",
-    n=1,  # 生成する画像の数
-    size="1024x1024"  # 画像のサイズ
+        model="gpt-image-1-mini",
+        prompt=query,
+        quality="medium",  # low(最安)/medium/high。コストと画質のバランスでmedium
+        size="1024x1024",
     )
 
-    # 生成された画像のURLを取得
-    image_url = response.data[0].url
-    # 画像をリクエストして保存
-    response = requests.get(image_url)
-    image_data = io.BytesIO(response.content)
+    # gpt-image系はURLではなくbase64で画像データが返る
+    image_data = io.BytesIO(base64.b64decode(response.data[0].b64_json))
 
     return image_data
 
