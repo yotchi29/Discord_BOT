@@ -377,7 +377,9 @@ async def on_message(message):
             and voice_reading_enabled.get(message.guild.id, True)
             and not bool(url_pattern.match(message.content))):
         async with voice_synthesis_lock:
-            await asyncio.to_thread(create_voice, message.content, message.author.id)
+            # clean_contentでメンションを表示名に変換し、「@」は読み上げ時にノイズになるため除去
+            readable_text = message.clean_content.replace("@", "")
+            await asyncio.to_thread(create_voice, readable_text, message.author.id)
             audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
             if not voice_client.is_playing():
                 voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
