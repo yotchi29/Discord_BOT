@@ -21,6 +21,9 @@ YOUTUBE_PLAYLIST_URL = config.YOUTUBE_PLAYLIST_URL
 # グローバル変数としてvoice_clientを定義
 voice_client = None
 
+# create_voice()は共通の一時ファイルに書き込むため、同時実行されないようロックする
+voice_synthesis_lock = asyncio.Lock()
+
 # サーバー(ギルド)ごとの自動読み上げON/OFF設定（未設定時はON扱い）
 voice_reading_enabled = {}
 
@@ -72,17 +75,18 @@ async def ai(ctx, *, message: str = ""):
 
     if message:
         try:
-            # メッセージの返信
-            response = get_response(message)
+            # メッセージの返信（同期処理はイベントループを止めないよう別スレッドで実行）
+            response = await asyncio.to_thread(get_response, message)
             print(message)
 
             #話者がチャンネルにいて、voice_clientがチャンネルに接続されていることを確認
             if ctx.author.voice and voice_client is not None and voice_client.is_connected():
-                # 音声ファイルのパスを指定
-                create_voice(response["text"])
-                audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
-                if not voice_client.is_playing():
-                    voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+                # 音声ファイルのパスを指定（一時ファイルの競合を避けるためロック）
+                async with voice_synthesis_lock:
+                    await asyncio.to_thread(create_voice, response["text"])
+                    audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+                    if not voice_client.is_playing():
+                        voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
             await ctx.send(response["text"])
         except Exception as e:
             print(f"aiコマンドでエラー: {e}")
@@ -166,12 +170,14 @@ async def imggen(ctx, *, prompt: str):
     # 画像生成に3秒以上かかりインタラクションが失効するのを防ぐ
     await ctx.defer()
     try:
-        img_data=create_image(prompt)
+        img_data = await asyncio.to_thread(create_image, prompt)
         # Discordチャンネルに画像を送信
         #channel = client.get_channel(1362828942398193847)
         await ctx.send(file=discord.File(img_data, 'generated_image.jpg'))
         await ctx.send("画像の生成に成功したのだ")
-    except: await ctx.send("画像の生成に失敗したのだ")
+    except Exception as e:
+        print(f"imggenコマンドでエラー: {e}")
+        await ctx.send("画像の生成に失敗したのだ")
 
 @bot.hybrid_command(name="character", description="読み上げに使うキャラクターを変更するのだ")
 @discord.app_commands.describe(character="変更したいキャラクター")
@@ -301,7 +307,7 @@ async def play(ctx, url: str):
     await ctx.defer()
 
     try:
-        play_url=get_youtube_url(url)
+        play_url = await asyncio.to_thread(get_youtube_url, url)
     except Exception as e:
         print(f"playコマンドでエラー: {e}")
         await ctx.send("URLの取得に失敗したのだ")
@@ -331,7 +337,7 @@ async def playlist(ctx, url: str):
         await ctx.send("有効なURLを指定してほしいのだ")
         return
     try:
-        add_video_to_playlist(url)
+        await asyncio.to_thread(add_video_to_playlist, url)
         reply = "プレイリストに追加できたのだ！！"
         if YOUTUBE_PLAYLIST_URL:
             reply += f"\n以下で確認!\n{YOUTUBE_PLAYLIST_URL}"
@@ -348,7 +354,7 @@ async def on_message(message):
 
     # メンションされたら呼び出されたチャンネルに返信
     if bot.user in message.mentions:
-        response = get_response(message.content)
+        response = await asyncio.to_thread(get_response, message.content)
         print(message)
         await message.channel.send(response["text"])
 
@@ -358,10 +364,11 @@ async def on_message(message):
             and message.author.voice
             and voice_reading_enabled.get(message.guild.id, True)
             and not bool(url_pattern.match(message.content))):
-        create_voice(message.content)
-        audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
-        if not voice_client.is_playing():
-            voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
+        async with voice_synthesis_lock:
+            await asyncio.to_thread(create_voice, message.content)
+            audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
+            if not voice_client.is_playing():
+                voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
 
     # コマンド処理を明示的に呼び出す
     await bot.process_commands(message)
