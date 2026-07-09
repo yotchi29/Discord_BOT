@@ -150,6 +150,15 @@ async def stop(ctx):
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
 
+# Botのsystemdサービスを再起動するコマンド（オーナー限定）
+@bot.hybrid_command(description="Botを再起動するのだ（オーナー限定）")
+async def restart(ctx):
+    if not await bot.is_owner(ctx.author):
+        await ctx.send("このコマンドはオーナーのみ使えるのだ")
+        return
+    await ctx.send("再起動するのだ...")
+    await asyncio.create_subprocess_exec("/usr/bin/sudo", "/usr/bin/systemctl", "restart", "discord-bot.service")
+
 # ボットが強制切断された際にvoice_clientをリセット
 @bot.event
 async def on_voice_state_update(member, before, after):
