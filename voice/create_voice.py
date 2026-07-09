@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from voicevox_core.blocking import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile, UserDict
 from voicevox_core import UserDictWord
@@ -60,11 +61,42 @@ def set_character(name: str):
 def get_character() -> str:
     return next(name for name, sid in CHARACTERS.items() if sid == speaker_id)
 
-#入力：音声化したいメッセージ
-def create_voice(text:str):
+# ユーザーごとの読み上げキャラ設定（未設定のユーザーはデフォルトのspeaker_idを使う）
+_USER_VOICES_PATH = Path(__file__).parent / "user_voices.json"
+_user_voices = {}
+if _USER_VOICES_PATH.exists():
+    with open(_USER_VOICES_PATH, encoding="utf-8") as f:
+        _user_voices = json.load(f)
+
+def _save_user_voices():
+    with open(_USER_VOICES_PATH, "w", encoding="utf-8") as f:
+        json.dump(_user_voices, f, ensure_ascii=False, indent=2)
+
+#ユーザー個人の読み上げキャラを設定
+def set_user_character(user_id: int, name: str):
+    _user_voices[str(user_id)] = CHARACTERS[name]
+    _save_user_voices()
+
+#ユーザー個人の読み上げキャラを解除（デフォルトに戻す）
+def clear_user_character(user_id: int) -> bool:
+    if str(user_id) not in _user_voices:
+        return False
+    del _user_voices[str(user_id)]
+    _save_user_voices()
+    return True
+
+#ユーザー個人の読み上げキャラ名を取得（未設定ならデフォルトのキャラ名）
+def get_user_character(user_id: int) -> str:
+    sid = _user_voices.get(str(user_id), speaker_id)
+    return next(name for name, cid in CHARACTERS.items() if cid == sid)
+
+#入力：音声化したいメッセージ。user_idを指定するとそのユーザーの個人設定キャラで読み上げる
+def create_voice(text: str, user_id: int = None):
+    target_speaker_id = _user_voices.get(str(user_id), speaker_id) if user_id is not None else speaker_id
+
     # 音声合成用クエリを作成して音声データを生成
-    audio_query = _synthesizer.create_audio_query(text, speaker_id)
-    wav_data = _synthesizer.synthesis(audio_query, speaker_id)
+    audio_query = _synthesizer.create_audio_query(text, target_speaker_id)
+    wav_data = _synthesizer.synthesis(audio_query, target_speaker_id)
 
     # 音声ファイルを保存して再生（tmp_fileはプロジェクトルート直下）
     tmp_dir = Path(__file__).parent.parent / "tmp_file"

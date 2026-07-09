@@ -8,7 +8,7 @@ import re, json, os, asyncio
 import config
 from ai.open_ai_api import get_response
 from youtube.get_youtube_url import get_youtube_url
-from voice.create_voice import create_voice, set_character, add_dictionary_word, remove_dictionary_word, list_dictionary_words
+from voice.create_voice import create_voice, set_character, add_dictionary_word, remove_dictionary_word, list_dictionary_words, set_user_character, clear_user_character, get_user_character
 from youtube.add_playlist import add_video_to_playlist
 from image.create_image import create_image
 import datetime
@@ -184,6 +184,19 @@ async def imggen(ctx, *, prompt: str):
 async def change_character(ctx, character: Literal["ずんだもん", "四国めたん", "春日部つむぎ", "雨晴はう"]):
     set_character(character)
     await ctx.send(f"キャラクターを{character}に変更したのだ")
+
+@bot.hybrid_command(name="my_character", description="自分の発言の読み上げキャラを個人設定するのだ")
+@discord.app_commands.describe(character="使いたいキャラクター")
+async def my_character(ctx, character: Literal["ずんだもん", "四国めたん", "春日部つむぎ", "雨晴はう"]):
+    set_user_character(ctx.author.id, character)
+    await ctx.send(f"{ctx.author.display_name}さんの読み上げキャラを{character}に設定したのだ")
+
+@bot.hybrid_command(name="my_character_reset", description="自分の読み上げキャラの個人設定を解除するのだ")
+async def my_character_reset(ctx):
+    if clear_user_character(ctx.author.id):
+        await ctx.send(f"{ctx.author.display_name}さんの読み上げキャラの個人設定を解除したのだ")
+    else:
+        await ctx.send("個人設定はまだ登録されていないのだ")
 
 @bot.hybrid_command(name="dict_add", description="読み上げ用の単語をユーザー辞書に登録するのだ")
 @discord.app_commands.describe(word="登録したい単語", reading="読み方（カタカナ）")
@@ -377,7 +390,7 @@ async def on_message(message):
             and voice_reading_enabled.get(message.guild.id, True)
             and not bool(url_pattern.match(message.content))):
         async with voice_synthesis_lock:
-            await asyncio.to_thread(create_voice, message.content)
+            await asyncio.to_thread(create_voice, message.content, message.author.id)
             audio_source = discord.FFmpegPCMAudio(f"{Path(__file__).parent}/tmp_file/res_voice.wav")
             if not voice_client.is_playing():
                 voice_client.play(audio_source, after=lambda e: print("再生終了:", e))
