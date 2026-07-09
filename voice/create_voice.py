@@ -52,15 +52,6 @@ def remove_dictionary_word(word: str) -> bool:
 def list_dictionary_words() -> dict:
     return {w.surface: w.pronunciation for w in _user_dict.to_dict().values()}
 
-#現在のキャラクターを変更
-def set_character(name: str):
-    global speaker_id
-    speaker_id = CHARACTERS[name]
-
-#現在のキャラクター名を取得
-def get_character() -> str:
-    return next(name for name, sid in CHARACTERS.items() if sid == speaker_id)
-
 # ユーザーごとの読み上げキャラ設定（未設定のユーザーはデフォルトのspeaker_idを使う）
 _USER_VOICES_PATH = Path(__file__).parent / "user_voices.json"
 _user_voices = {}
@@ -76,19 +67,6 @@ def _save_user_voices():
 def set_user_character(user_id: int, name: str):
     _user_voices[str(user_id)] = CHARACTERS[name]
     _save_user_voices()
-
-#ユーザー個人の読み上げキャラを解除（デフォルトに戻す）
-def clear_user_character(user_id: int) -> bool:
-    if str(user_id) not in _user_voices:
-        return False
-    del _user_voices[str(user_id)]
-    _save_user_voices()
-    return True
-
-#ユーザー個人の読み上げキャラ名を取得（未設定ならデフォルトのキャラ名）
-def get_user_character(user_id: int) -> str:
-    sid = _user_voices.get(str(user_id), speaker_id)
-    return next(name for name, cid in CHARACTERS.items() if cid == sid)
 
 #入力：音声化したいメッセージ。user_idを指定するとそのユーザーの個人設定キャラで読み上げる
 def create_voice(text: str, user_id: int = None):
