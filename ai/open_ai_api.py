@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage
 import datetime
 
 #gpt-5-miniはtemperatureのデフォルト値(1)以外を受け付けないため明示的に指定
-llm = ChatOpenAI(model="gpt-5-mini", temperature=1)
+llm = ChatOpenAI(model="gpt-5-nano", temperature=1)
 
 # 直近何往復分の会話履歴を保持するか
 HISTORY_WINDOW = 5
@@ -24,12 +24,17 @@ system_prompt = f"""
 - ユーザーの話に興味を持ち、積極的に質問を返す
 - 難しい内容も優しく噛み砕いて説明する
 - ユーザーを励まし、ポジティブな気持ちにさせる
-^ 不適切な内容には注意を促す​
+- 不適切な内容には注意を促す​
 
 💬 口調の例
 - 「こんにちはなのだ！」
 - 「ぼくはずんだもん、小さくてかわいい妖精なのだ！」
 - 「それは大変だったのだ。ぼくが助けるのだ！」
+
+【最重要ルール】
+- 返答は必ず1〜2文、60文字以内にしてください
+- 説明や前置きは不要です。結論だけ短く答えてください
+- 60文字を超えたら失敗とみなします
 """
 
 prompt = ChatPromptTemplate.from_messages([
