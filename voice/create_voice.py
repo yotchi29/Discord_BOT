@@ -3,16 +3,16 @@ from pathlib import Path
 from voicevox_core.blocking import Onnxruntime, OpenJtalk, Synthesizer, VoiceModelFile, UserDict
 from voicevox_core import UserDictWord
 
-# 0.vvmに含まれるキャラクター（ノーマルスタイル）の話者ID
+# 0.vvmに含まれるキャラクターとスタイルごとの話者ID
 CHARACTERS = {
-    "ずんだもん": 3,
-    "四国めたん": 2,
-    "春日部つむぎ": 8,
-    "雨晴はう": 10,
+    "ずんだもん": {"ノーマル": 3, "あまあま": 1, "ツンツン": 7, "セクシー": 5},
+    "四国めたん": {"ノーマル": 2, "あまあま": 0, "ツンツン": 6, "セクシー": 4},
+    "春日部つむぎ": {"ノーマル": 8},
+    "雨晴はう": {"ノーマル": 10},
 }
 
-# 現在読み上げに使用する話者ID（デフォルトはずんだもん）
-speaker_id = CHARACTERS["ずんだもん"]
+# 現在読み上げに使用する話者ID（デフォルトはずんだもんのノーマル）
+speaker_id = CHARACTERS["ずんだもん"]["ノーマル"]
 
 _ASSETS_DIR = Path(__file__).parent / "voicevox_core_assets"
 
@@ -63,10 +63,14 @@ def _save_user_voices():
     with open(_USER_VOICES_PATH, "w", encoding="utf-8") as f:
         json.dump(_user_voices, f, ensure_ascii=False, indent=2)
 
-#ユーザー個人の読み上げキャラを設定
-def set_user_character(user_id: int, name: str):
-    _user_voices[str(user_id)] = CHARACTERS[name]
+#ユーザー個人の読み上げキャラ・スタイルを設定。存在しない組み合わせならFalseを返す
+def set_user_character(user_id: int, name: str, style: str = "ノーマル") -> bool:
+    styles = CHARACTERS[name]
+    if style not in styles:
+        return False
+    _user_voices[str(user_id)] = styles[style]
     _save_user_voices()
+    return True
 
 #入力：音声化したいメッセージ。user_idを指定するとそのユーザーの個人設定キャラで読み上げる
 def create_voice(text: str, user_id: int = None):

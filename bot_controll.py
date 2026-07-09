@@ -189,10 +189,16 @@ async def imggen(ctx, *, prompt: str):
         await ctx.send("画像の生成に失敗したのだ")
 
 @bot.hybrid_command(name="character", description="自分の発言の読み上げキャラを個人設定するのだ")
-@discord.app_commands.describe(character="使いたいキャラクター")
-async def change_character(ctx, character: Literal["ずんだもん", "四国めたん", "春日部つむぎ", "雨晴はう"]):
-    set_user_character(ctx.author.id, character)
-    await ctx.send(f"{ctx.author.display_name}さんの読み上げキャラを{character}に設定したのだ")
+@discord.app_commands.describe(character="使いたいキャラクター", style="スタイル（省略でノーマル。つむぎ・はうはノーマルのみ）")
+async def change_character(
+    ctx,
+    character: Literal["ずんだもん", "四国めたん", "春日部つむぎ", "雨晴はう"],
+    style: Literal["ノーマル", "あまあま", "ツンツン", "セクシー"] = "ノーマル",
+):
+    if not set_user_character(ctx.author.id, character, style):
+        await ctx.send(f"{character}に{style}スタイルはないのだ")
+        return
+    await ctx.send(f"{ctx.author.display_name}さんの読み上げキャラを{character}（{style}）に設定したのだ")
 
 @bot.hybrid_command(name="dict_add", description="読み上げ用の単語をユーザー辞書に登録するのだ")
 @discord.app_commands.describe(word="登録したい単語", reading="読み方（カタカナ）")
