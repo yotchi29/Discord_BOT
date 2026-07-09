@@ -325,6 +325,18 @@ async def play(ctx, url: str):
             await ctx.send(f"キューに追加したのだ")
     else:
         await ctx.send("ボイスチャンネルに接続してから使ってほしいのだ")
+
+@bot.hybrid_command(description="再生中の動画をスキップするのだ")
+async def skip(ctx):
+    voice_client = ctx.voice_client
+    if voice_client is None or not voice_client.is_connected():
+        await ctx.send("ボイスチャンネルに接続していないのだ")
+        return
+    if not voice_client.is_playing():
+        await ctx.send("再生中の曲がないのだ")
+        return
+    voice_client.stop()  # after=play_nextが呼ばれ、キューがあれば次の曲が再生される
+    await ctx.send("スキップしたのだ")
 #######################################################################################
 
 @bot.hybrid_command(description="URLをYouTubeプレイリストに追加するのだ")
