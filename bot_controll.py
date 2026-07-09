@@ -98,7 +98,7 @@ async def ai(ctx, *, message: str = ""):
 # ボイスチャンネルに参加し、音声ファイルを再生するコマンド
 @bot.hybrid_command(description="ボイスチャンネルに参加するのだ")
 async def join(ctx):
-    global voice_client #global変数のvoice_clientを指定、そうしないとaiコマンドで呼び出せない
+    global voice_client, empty_channel_disconnect_task #global変数のvoice_clientを指定、そうしないとaiコマンドで呼び出せない
 
     # 接続リトライのsleepで3秒以上かかりインタラクションが失効するのを防ぐ
     await ctx.defer()
@@ -116,6 +116,9 @@ async def join(ctx):
             except Exception:
                 pass
     voice_client = None
+    if empty_channel_disconnect_task is not None:
+        empty_channel_disconnect_task.cancel()
+        empty_channel_disconnect_task = None
     await asyncio.sleep(1)  # Discord側のセッション破棄を待つ
 
     # ユーザーのボイスチャンネルに接続（4006時は1回だけ自動リトライ）
@@ -142,10 +145,13 @@ async def join(ctx):
 # 音声を停止し、ボイスチャンネルから切断するコマンド
 @bot.hybrid_command(description="ボイスチャンネルから切断するのだ")
 async def stop(ctx):
-    global voice_client
+    global voice_client, empty_channel_disconnect_task
     if ctx.voice_client is not None:
         await ctx.voice_client.disconnect(force=True)
         voice_client = None
+        if empty_channel_disconnect_task is not None:
+            empty_channel_disconnect_task.cancel()
+            empty_channel_disconnect_task = None
         await ctx.send("ボイスチャンネルから切断したのだ")
     else:
         await ctx.send("ボイスチャンネルに接続していないのだ")
@@ -159,10 +165,28 @@ async def restart(ctx):
     await ctx.send("再起動するのだ...")
     await asyncio.create_subprocess_exec("/usr/bin/sudo", "/usr/bin/systemctl", "restart", "discord-bot.service")
 
-# ボットが強制切断された際にvoice_clientをリセット
+# ボイスチャンネルが無人になってから自動退出するまでの待機時間(秒)
+EMPTY_CHANNEL_TIMEOUT = 60
+# 無人検知後の自動退出タスク（誰か入ってきたらキャンセルする）
+empty_channel_disconnect_task = None
+
+async def disconnect_after_empty(channel):
+    global voice_client, empty_channel_disconnect_task
+    await asyncio.sleep(EMPTY_CHANNEL_TIMEOUT)
+    # 待機後も引き続き無人か確認してから切断（他ユーザーが再入室していたら何もしない）
+    if voice_client is not None and voice_client.channel == channel and not [m for m in channel.members if not m.bot]:
+        try:
+            await voice_client.disconnect(force=True)
+        except Exception:
+            pass
+        voice_client = None
+        print(f"{channel.name}が{EMPTY_CHANNEL_TIMEOUT}秒間無人だったため自動退出しました")
+    empty_channel_disconnect_task = None
+
+# ボットが強制切断された際にvoice_clientをリセット、ボイスチャンネルが無人になったら自動退出タイマーを開始
 @bot.event
 async def on_voice_state_update(member, before, after):
-    global voice_client
+    global voice_client, empty_channel_disconnect_task
     if member == bot.user and before.channel is not None and after.channel is None:
         # ボット自身がボイスチャンネルから切断された
         if voice_client is not None:
@@ -172,6 +196,23 @@ async def on_voice_state_update(member, before, after):
                 pass
             voice_client = None
             print("ボイスチャンネルから切断されたためvoice_clientをリセットしました")
+        if empty_channel_disconnect_task is not None:
+            empty_channel_disconnect_task.cancel()
+            empty_channel_disconnect_task = None
+        return
+
+    if voice_client is None or not voice_client.is_connected():
+        return
+
+    # ボットがいるチャンネルから人がいなくなったら自動退出タイマーを開始
+    if before.channel == voice_client.channel and not [m for m in before.channel.members if not m.bot]:
+        if empty_channel_disconnect_task is None:
+            empty_channel_disconnect_task = bot.loop.create_task(disconnect_after_empty(before.channel))
+
+    # ボットがいるチャンネルに誰か入ってきたらタイマーをキャンセル
+    if after.channel == voice_client.channel and empty_channel_disconnect_task is not None:
+        empty_channel_disconnect_task.cancel()
+        empty_channel_disconnect_task = None
 
 @bot.hybrid_command(description="AIが画像を生成するのだ")
 @discord.app_commands.describe(prompt="生成したい画像の説明")
